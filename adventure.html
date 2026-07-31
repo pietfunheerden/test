@@ -1,0 +1,107 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Adventure</title><link rel="stylesheet" href="css/styles.css"></head><body>
+<div id="s-app" class="screen">
+  <div class="app-topbar">
+    <div class="app-topbar-row">
+      <button onclick="showHub()" style="background:none;border:none;color:var(--teal);font-size:24px;cursor:pointer;padding:0 4px 0 0">←</button>
+      <div class="user-chip">
+        <div class="u-init" id="u-init"></div>
+        <div>
+          <div class="u-name" id="u-name"></div>
+          <div class="u-fam" id="u-fam">Family</div>
+        </div>
+      </div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+    <div class="fam-cards" id="fam-cards"></div>
+    <div class="overall-row">
+      <span class="overall-lbl">Overall Progress</span>
+      <span class="overall-pct" id="overall-pct">0%</span>
+    </div>
+    <div class="overall-bg"><div class="overall-fill" id="overall-fill" style="width:0%"></div></div>
+  </div>
+  <div class="app-tabs" id="app-tabs"></div>
+  <div id="app-panels"></div>
+</div>
+
+<!-- Long-press context menu on a packing/shopping item -->
+<div class="ctx-bg" id="ctx-bg" onclick="if(event.target===this)closeCtx()">
+  <div class="ctx-menu">
+    <div class="ctx-title" id="ctx-title"></div>
+    <button class="ctx-opt" id="ctx-edit"><span class="ctx-icon">✏️</span>Edit</button>
+    <button class="ctx-opt" id="ctx-shared"><span class="ctx-icon">👥</span>Mark as shared</button>
+    <button class="ctx-opt" id="ctx-private"><span class="ctx-icon">🔒</span>Mark as private</button>
+    <button class="ctx-opt" id="ctx-unmark"><span class="ctx-icon">↩️</span>Unmark</button>
+    <button class="ctx-opt danger" id="ctx-delete"><span class="ctx-icon">🗑️</span>Delete</button>
+  </div>
+</div>
+
+<!-- Reply to a Q&A post (also repurposed by JS for "assign user" / "clone item to…") -->
+<div class="modal-bg" id="reply-modal">
+  <div class="modal">
+    <h3>Reply</h3>
+    <textarea class="mi" id="reply-txt" rows="3" placeholder="Write a reply…" style="resize:none"></textarea>
+    <div class="mbtns">
+      <button class="m-cancel" onclick="closeReplyModal()">Cancel</button>
+      <button class="m-save" onclick="sendReply()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit a packing/shopping item -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h3>Edit Item</h3>
+    <div class="mf"><label class="ml">Name</label><input class="mi" id="e-name"></div>
+    <div class="mf"><label class="ml">Quantity</label><input class="mi" id="e-qty"></div>
+    <div class="mf"><label class="ml">Note</label><input class="mi" id="e-note"></div>
+    <div class="mf"><label class="ml">Priority</label>
+      <select class="mi" id="e-priority">
+        <option value="recommended">Recommended</option>
+        <option value="critical">Critical</option>
+        <option value="nice">Nice to have</option>
+      </select>
+    </div>
+    <div class="mbtns">
+      <button class="m-cancel" onclick="closeEditModal()">Cancel</button>
+      <button class="m-save" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add a new packing/shopping item -->
+<div class="modal-bg" id="add-modal">
+  <div class="modal">
+    <h3>Add Item</h3>
+    <div class="mf"><label class="ml">Name</label><input class="mi" id="a-name" placeholder="Item name"></div>
+    <div class="mf"><label class="ml">Quantity</label><input class="mi" id="a-qty" value="1"></div>
+    <div class="mf"><label class="ml">Note</label><input class="mi" id="a-note" placeholder="Optional note"></div>
+    <div class="mf"><label class="ml">Priority</label>
+      <select class="mi" id="a-priority">
+        <option value="recommended" selected>Recommended</option>
+        <option value="critical">Critical</option>
+        <option value="nice">Nice to have</option>
+      </select>
+    </div>
+    <div class="mbtns">
+      <button class="m-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="m-save" onclick="saveAdd()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit a meal for a given day -->
+<div class="modal-bg" id="meal-modal">
+  <div class="modal">
+    <h3 id="meal-modal-title">Edit Meal</h3>
+    <div class="mf"><label class="ml">Food</label><input class="mi" id="m-food" placeholder="What's for this meal?"></div>
+    <div class="mf"><label class="ml">Tip</label><input class="mi" id="m-tip" placeholder="Any tips?"></div>
+    <div class="mbtns">
+      <button class="m-cancel" onclick="closeMealModal()">Cancel</button>
+      <button class="m-save" onclick="saveMeal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="js/app.js"></script>
+</body></html>
