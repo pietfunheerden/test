@@ -129,10 +129,10 @@ let didInitialHikeRoute=false;
 
 // ── SCREENS ──
 // The app is split across separate HTML pages (login.html, hub.html,
-// entry.html, adventure.html, admin.html), each containing only its own
+// adventure.html, admin.html), each containing only its own
 // `.screen` element. showScreen() shows that screen if it's on the current
 // page, or redirects to the page that has it otherwise.
-const PAGE_FOR_SCREEN={'s-login':'login.html','s-hub':'hub.html','s-hike-entry':'entry.html','s-app':'adventure.html','s-admin':'admin.html'};
+const PAGE_FOR_SCREEN={'s-login':'login.html','s-hub':'hub.html','s-app':'adventure.html','s-admin':'admin.html'};
 function showScreen(id){
   const s=document.getElementById(id);
   if(s){
@@ -177,13 +177,13 @@ function makeStars(){
 // ── WEATHER (Open-Meteo — free, no key) ──
 const WX_CODES={0:'☀️ Clear',1:'🌤️ Mainly clear',2:'⛅ Partly cloudy',3:'☁️ Overcast',45:'🌫️ Foggy',48:'🌫️ Icy fog',51:'🌦️ Light drizzle',53:'🌦️ Drizzle',55:'🌧️ Heavy drizzle',61:'🌧️ Light rain',63:'🌧️ Rain',65:'⛈️ Heavy rain',71:'🌨️ Light snow',73:'🌨️ Snow',75:'❄️ Heavy snow',80:'🌦️ Showers',81:'🌧️ Heavy showers',95:'⛈️ Thunderstorm',99:'⛈️ Hail storm'};
 
-async function fetchWeatherForEntry(lat,lon){
+async function fetchWeatherForEntry(lat,lon,targetId='entry-weather'){
   try{
     const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`);
     const d=await r.json();
     const c=d.current;
     const desc=WX_CODES[c.weathercode]||'🌡️ Weather';
-    const strip=document.getElementById('entry-weather');
+    const strip=document.getElementById(targetId);
     if(strip)strip.innerHTML=`
       <div class="weather-chip">${desc}</div>
       <div class="weather-chip">🌡️ ${Math.round(c.temperature_2m)}°C</div>
@@ -191,24 +191,19 @@ async function fetchWeatherForEntry(lat,lon){
   }catch(e){console.log('Weather unavailable');}
 }
 
-async function fetchDistanceForEntry(destLat,destLon){
-  try{
-    const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}));
-    const {latitude:oLat,longitude:oLon}=pos.coords;
-    // Straight-line distance (km) as fallback — OSRM can be slow on mobile
-    const R=6371;
-    const dLat=(destLat-oLat)*Math.PI/180;
-    const dLon=(destLon-oLon)*Math.PI/180;
-    const a=Math.sin(dLat/2)**2+Math.cos(oLat*Math.PI/180)*Math.cos(destLat*Math.PI/180)*Math.sin(dLon/2)**2;
-    const dist=Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
-    const strip=document.getElementById('entry-weather');
-    if(strip){
-      const chip=document.createElement('div');
-      chip.className='dist-chip';
-      chip.innerHTML=`📍 ~${dist} km away`;
-      strip.appendChild(chip);
-    }
-  }catch(e){} // geolocation denied — silent
+// Fetches weather for a hike card on the hub, using its saved coords or
+// geocoding its location name as a fallback. targetId is the card's own
+// weather-chip container so multiple cards can load independently.
+function loadCardWeather(hike,targetId){
+  const coords=hike.coords||null;
+  if(coords?.lat){
+    fetchWeatherForEntry(coords.lat,coords.lon,targetId);
+    return;
+  }
+  fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(hike.location||hike.name)}&format=json&limit=1`,{headers:{'Accept-Language':'en'}})
+    .then(r=>r.json()).then(res=>{
+      if(res[0])fetchWeatherForEntry(parseFloat(res[0].lat),parseFloat(res[0].lon),targetId);
+    }).catch(()=>{});
 }
 
 // ── LOCATION SEARCH (Nominatim — free, no key) ──
@@ -312,22 +307,6 @@ function subscribeHikes(){
 
     if(!didInitialHikeRoute){
       didInitialHikeRoute=true;
-
-      // Just tapped a hike card on the hub and landed on entry.html — show
-      // that hike's entry screen. Only relevant if we're actually on the
-      // page that has #s-hike-entry.
-      const viewId=localStorage.getItem('trail_viewHikeId');
-      if(viewId&&document.getElementById('s-hike-entry')){
-        localStorage.removeItem('trail_viewHikeId');
-        const h=allHikes.find(x=>x.id===viewId);
-        const canSee=h&&(isGlobalAdmin||h.invitedEmails?.includes(cu.email)||(userFamKey!==null&&h.families?.[userFamKey]));
-        if(canSee){
-          currentHike=h;
-          renderEntryScreen(h);
-          return;
-        }
-      }
-
       const lastId=localStorage.getItem('trail_lastHikeId');
       if(lastId){
         const h=allHikes.find(x=>x.id===lastId);
@@ -389,22 +368,27 @@ function renderHub(){
 
   if(active.length){
     html+=`<div class="hub-section-label">📋 Upcoming Adventures</div>`;
+    html+=`<div class="hike-grid">`;
     active.forEach(h=>{html+=hikeCard(h,false);});
+    html+=`</div>`;
   }
 
   if(archived.length){
     html+=`<div class="hub-section-label" style="margin-top:12px">📦 Past Adventures</div>`;
+    html+=`<div class="hike-grid">`;
     archived.forEach(h=>{html+=hikeCard(h,true);});
+    html+=`</div>`;
   }
 
   content.innerHTML=html;
+  active.forEach(h=>loadCardWeather(h,`card-weather-${h.id}`));
 }
 
 function hikeCard(h,archived){
   const img=h.imageUrl||getLocationImg(h.location||h.name);
   const fams=h.families||[];
   const prog=h.progress||0;
-  return `<div class="hike-card" onclick="selectHike('${h.id}')">
+  return `<div class="hike-card" onclick="openHike('${h.id}')">
     <div class="hike-card-img" style="background-image:url('${img}');background-size:cover;background-position:center" onerror="this.style.background='linear-gradient(135deg,#667eea 0%,#764ba2 100%)';this.style.display='flex';this.style.alignItems='center';this.style.justifyContent='center';this.style.fontSize='48px';this.textContent='🏕️'" onload=""></div>
     <div class="hike-card-overlay"></div>
     <div style="position:absolute;top:12px;right:12px;z-index:10">
@@ -416,56 +400,19 @@ function hikeCard(h,archived){
       <div class="hike-card-loc">📍 ${h.location||'—'}</div>
       <div class="hike-card-dates">📅 ${h.dates||'—'}</div>
       <div class="hike-card-fams">${fams.map(f=>`<span class="fam-chip">🏠 ${f.name}</span>`).join('')}</div>
+      ${archived?'':`<div class="weather-strip" id="card-weather-${h.id}" style="justify-content:flex-start;margin:6px 0 10px;animation:none"></div>`}
       <div class="hike-card-prog"><div class="hike-card-prog-fill" style="width:${prog}%"></div></div>
     </div>
   </div>`;
 }
 
 // ── SELECT HIKE → ANIMATED ENTRY ──
-window.selectHike=async hikeId=>{
+window.openHike=hikeId=>{
   const hike=allHikes.find(h=>h.id===hikeId);
   if(!hike)return;
   currentHike=hike;
-  // Remember which hike we're viewing so entry.html (a fresh page load)
-  // knows what to render — in-memory state doesn't survive navigation.
-  localStorage.setItem('trail_viewHikeId',hikeId);
-  if(!document.getElementById('s-hike-entry')){
-    window.location.href='entry.html';
-    return;
-  }
-  renderEntryScreen(hike);
+  enterHike();
 };
-
-function renderEntryScreen(hike){
-  // Setup entry screen
-  const img=hike.imageUrl||getLocationImg(hike.location||hike.name,1200,800);
-  document.getElementById('entry-bg').style.backgroundImage=`url('${img}')`;
-  document.getElementById('entry-name').textContent=hike.name;
-  document.getElementById('entry-loc').textContent='📍 '+(hike.location||'');
-  document.getElementById('entry-dates').textContent='📅 '+(hike.dates||'');
-  document.getElementById('entry-badge').textContent=(hike.location||'Adventure')+' · '+new Date().getFullYear();
-  document.getElementById('entry-fams').innerHTML=(hike.families||[]).map(f=>`<span class="entry-fam-chip">🏠 ${f.name}</span>`).join('');
-  document.getElementById('entry-weather').innerHTML='<div class="weather-chip" style="opacity:.5">🌡️ Loading weather…</div>';
-  makeParticles('entry-particles',16);
-  showScreen('s-hike-entry');
-  // Fetch weather + distance (non-blocking)
-  const coords=hike.coords||null;
-  if(coords?.lat){
-    fetchWeatherForEntry(coords.lat,coords.lon);
-    fetchDistanceForEntry(coords.lat,coords.lon);
-  } else {
-    // Geocode from location name as fallback
-    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(hike.location||hike.name)}&format=json&limit=1`,{headers:{'Accept-Language':'en'}})
-      .then(r=>r.json()).then(res=>{
-        if(res[0]){
-          fetchWeatherForEntry(parseFloat(res[0].lat),parseFloat(res[0].lon));
-          fetchDistanceForEntry(parseFloat(res[0].lat),parseFloat(res[0].lon));
-        } else {
-          document.getElementById('entry-weather').innerHTML='';
-        }
-      }).catch(()=>{document.getElementById('entry-weather').innerHTML='';});
-  }
-}
 
 window.enterHike=async()=>{
   if(!currentHike)return;
@@ -2170,7 +2117,7 @@ window.createHike=async()=>{
   closeCreateHike();
   showToast('🏔️ Adventure created!');
   // Auto-open the new hike
-  setTimeout(()=>selectHike(ref.id),500);
+  setTimeout(()=>openHike(ref.id),500);
 };
 
 // ── TOAST ──
