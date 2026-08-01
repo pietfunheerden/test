@@ -319,14 +319,23 @@ function subscribeHikes(){
         // Saved hike no longer accessible — forget it and fall through to hub.
         localStorage.removeItem('trail_lastHikeId');
       }
-      showScreen('s-hub');
-      renderHub();
+      // Route to appropriate page
+      if(document.getElementById('s-admin')){
+        showScreen('s-admin');
+        renderAdmin();
+      } else {
+        showScreen('s-hub');
+        renderHub();
+      }
       return;
     }
 
-    // Subsequent snapshot updates: only touch the screen if the hub is what's showing.
+    // Subsequent snapshot updates
     if(document.getElementById('s-hub')?.classList.contains('active')){
       renderHub();
+    }
+    if(document.getElementById('s-admin')?.classList.contains('active')&&isGlobalAdmin){
+      renderAdmin();
     }
   });
   unsubs.push(u);
@@ -541,12 +550,29 @@ function buildAppTabs(){
   bar.innerHTML='';pnls.innerHTML='';
   if(!currentHikeData)return;
 
-  const myFam=currentHikeData['f'+userFamKey];
-  if(!myFam)return;
+  // Determine which family to show tabs for: editing family (if global admin editing another), or user's own family
+  const activeFamKey=getEditFamKey();
+  const activeFam=currentHikeData['f'+activeFamKey];
+  if(!activeFam)return;
+
+  // For global admins: add a family selector at the top of tabs
+  if(isGlobalAdmin&&Object.keys(currentHikeData).length>1){
+    const famBar=document.createElement('div');
+    famBar.style.cssText='display:flex;gap:8px;padding:8px 14px;overflow-x:auto;background:var(--s2);border-bottom:1px solid var(--border)';
+    Object.entries(currentHikeData).forEach(([fk,fam])=>{
+      const btn=document.createElement('button');
+      const isActive=fk==activeFamKey;
+      btn.textContent=fam.name;
+      btn.style.cssText=`background:${isActive?'var(--fl)':'var(--card)'};color:${isActive?'#fff':'var(--text)'};border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap`;
+      btn.onclick=()=>{editingFamKey=fk;buildAppTabs();renderAppAll();showAppTab('dash');};
+      famBar.appendChild(btn);
+    });
+    bar.appendChild(famBar);
+  }
 
   // Other family panels (hidden, rendered on fam-card tap — not shown as tabs)
   const otherFamPanels=Object.entries(currentHikeData)
-    .filter(([fk,fam],fi)=>fi!==userFamKey)
+    .filter(([fk,fam],fi)=>fk!=activeFamKey)
     .flatMap(([fk,fam])=>
       Object.entries(fam.members).map(([mk,mv])=>({
         id:`other_${fk}_${mk}`,
@@ -556,7 +582,7 @@ function buildAppTabs(){
 
   const tabs=[
     {id:'dash',label:'📊 Dashboard'},
-    ...Object.entries(myFam.members).map(([k,v])=>({id:'m_'+k,label:'🎒 '+(v.name||v.label.split(' ')[0])})),
+    ...Object.entries(activeFam.members).map(([k,v])=>({id:'m_'+k,label:'🎒 '+(v.name||v.label.split(' ')[0])})),
     {id:'shop',label:'🛒 Shopping'},
     {id:'meals',label:'🍲 Meals'},
     {id:'qa',label:'💬 Q&A'},
@@ -611,15 +637,22 @@ function buildFamCards(){
   fc.innerHTML=Object.entries(currentHikeData).map(([fk,fam],fi)=>{
     const isMine=fi===userFamKey;
     const firstMemberKey=Object.keys(fam.members)[0];
-    const clickTarget=isMine
-      ?`showAppTab('m_${firstMemberKey}')`
-      :`openOtherFamView('${fk}','${firstMemberKey}','${fam.name}')`;
+    let clickTarget;
+    if(isMine){
+      clickTarget=`showAppTab('m_${firstMemberKey}')`;
+    } else if(isGlobalAdmin){
+      // Global admin: can edit any family
+      clickTarget=`editingFamKey='${fk}';buildAppTabs();renderAppAll();showAppTab('m_${firstMemberKey}')`;
+    } else {
+      // Family admin or member: read-only view of other families
+      clickTarget=`openOtherFamView('${fk}','${firstMemberKey}','${fam.name}')`;
+    }
     return`<div class="fam-card${isMine?' mine':''}" onclick="${clickTarget}" style="cursor:pointer">
-      <div class="fc-name">🏠 ${fam.name}${isMine?' ✓':' 👀'}</div>
+      <div class="fc-name">🏠 ${fam.name}${isMine?' ✓':isGlobalAdmin?'':' 👀'}</div>
       <div class="fc-pct" id="fc-pct-${fk}">—%</div>
       <div class="fc-sub" id="fc-sub-${fk}">loading…</div>
       <div class="fc-bar-bg"><div class="fc-bar-fill" id="fc-bar-${fk}" style="width:0%;background:${fi===0?'var(--green)':'var(--teal)'}"></div></div>
-      <div style="font-size:9px;color:${isMine?'var(--green)':'var(--teal)'};margin-top:4px;font-weight:700">${isMine?'Tap to pack':'Tap to view →'}</div>
+      <div style="font-size:9px;color:${isMine?'var(--green)':isGlobalAdmin?'var(--amber)':'var(--teal)'};margin-top:4px;font-weight:700">${isMine?'Tap to pack':isGlobalAdmin?'Tap to edit':' Tap to view →'}</div>
     </div>`;
   }).join('');
 }
@@ -835,8 +868,9 @@ function renderAppAll(){
     updateFamCards();return;
   }
   renderDashboard();
-  const myFam=currentHikeData['f'+userFamKey];
-  if(myFam)Object.keys(myFam.members).forEach(k=>renderMember(k));
+  const activeFamKey=getEditFamKey();
+  const activeFam=currentHikeData['f'+activeFamKey];
+  if(activeFam)Object.keys(activeFam.members).forEach(k=>renderMember(k));
   renderShop();
   renderMeals();
   updateFamCards();
@@ -926,9 +960,10 @@ function memberProgress(famIdx,memberKey){
 
 function renderMember(memberKey){
   const panel=document.getElementById('ap_m_'+memberKey);if(!panel)return;
-  const fam=currentHikeData?.['f'+userFamKey];if(!fam)return;
+  const famKey=getEditFamKey();
+  const fam=currentHikeData?.['f'+famKey];if(!fam)return;
   const member=fam.members[memberKey];if(!member)return;
-  const{t,d,pct}=memberProgress(userFamKey,memberKey);
+  const{t,d,pct}=memberProgress(famKey,memberKey);
   let html=`<div class="card">
     <div class="p-hdr">
       ${member.note?`<div class="p-hdr-note">${member.note}</div>`:''}
@@ -975,7 +1010,8 @@ function renderMember(memberKey){
 // ── SHOPPING ──
 function renderShop(){
   const panel=document.getElementById('ap_shop');if(!panel)return;
-  const fam=currentHikeData?.['f'+userFamKey];if(!fam)return;
+  const famKey=getEditFamKey();
+  const fam=currentHikeData?.['f'+famKey];if(!fam)return;
   let t=0,d=0;fam.shopping.forEach(c=>c.items.forEach(i=>{t++;if(checks[i.id]?.checked)d++;}));
   const pct=t?Math.round(d/t*100):0;
   let html=`<div class="card"><div class="p-hdr">
@@ -1024,7 +1060,8 @@ function renderShop(){
 function renderMeals(){
   const panel=document.getElementById('ap_meals');if(!panel)return;
   if(!currentHikeData)return;
-  const fam=currentHikeData?.['f'+userFamKey];if(!fam)return;
+  const famKey=getEditFamKey();
+  const fam=currentHikeData?.['f'+famKey];if(!fam)return;
   const meals=fam.meals||[];
   if(!meals.length){panel.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No meals planned yet</div>';return;}
   let html=`<div style="padding:0 8px">`;
@@ -1106,7 +1143,8 @@ window.delPost=async id=>{if(!currentHike)return;if(confirm('Delete post?'))awai
 function renderSettings(){
   const panel=document.getElementById('ap_settings');if(!panel)return;
   const name=cu?.displayName||cu?.email||'';
-  const fam=currentHikeData?.['f'+userFamKey];
+  const famKey=getEditFamKey();
+  const fam=currentHikeData?.['f'+famKey];
 
   const memberRows=fam?Object.entries(fam.members).map(([k,v])=>`
     <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--border)">
@@ -1172,77 +1210,111 @@ function renderSettings(){
       <div class="hint" style="color:var(--amber)">⚠️ Adds items to target — existing items kept. Private items skipped.</div>
     </div>`:''}
 
-    ${(isGlobalAdmin||isFamilyAdmin)?`<div class="card">
-      <div class="card-title">🗄️ Archive This Hike</div>
-      <div style="padding:0 14px 14px">
-        <button onclick="archiveHike()" style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%">${currentHike?.archived?'Unarchive Hike':'Archive This Hike'}</button>
-      </div>
+    ${isGlobalAdmin?`<div class="card">
+      <div class="card-title">⚙️ Administration</div>
+      <button class="add-u-btn" style="padding:10px;width:100%;margin:0" onclick="showAdmin()">Go to Admin Panel →</button>
     </div>`:''}
-
-    ${isGlobalAdmin?`<div class="card" style="border-color:rgba(239,83,80,.3)">
-      <div class="card-title" style="color:var(--red)">🗑️ Delete This Hike</div>
-      <div style="padding:0 14px 14px">
-        <div class="hint" style="margin-bottom:8px">Permanently deletes this hike and all its checklists, meals, and posts. This cannot be undone — archiving is usually safer if you just want it out of the way.</div>
-        <button onclick="deleteHike()" style="background:rgba(239,83,80,.1);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%">Delete This Hike Permanently</button>
-      </div>
-    </div>`:''}
-
-    <div class="card">
-      <div class="card-title">⚠️ Reset</div>
-      <div style="padding:0 14px 14px">
-        <button onclick="resetAll()" style="background:rgba(239,83,80,.1);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%">Reset my family's checklists</button>
-      </div>
-    </div>
-
-    ${isGlobalAdmin?`
-    <div class="card" style="border-color:rgba(255,179,0,.3)">
-      <div class="card-title" style="color:var(--amber)">🌍 Administration</div>
-
-      <div style="padding:0 14px 14px">
-        <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Users & Family Assignment</div>
-        <div class="u-list" style="padding:0;margin-bottom:10px">${users.map(u=>{
-          const famIdx=u.familyKey!==null&&u.familyKey!==undefined?u.familyKey:null;
-          const famName=famIdx!==null?(currentHike?.families?.[famIdx]?.name||'Fam '+famIdx):'Unassigned';
-          const roleLabel=u.role==='globalAdmin'?'🌍 Global Admin':u.role==='familyAdmin'?'👨‍👩‍👧 Fam Admin':'👤 Member';
-          const roleBg=u.role==='globalAdmin'?'badge-admin':u.role==='familyAdmin'?'badge-admin':'badge-user';
-          return`<div class="u-item" style="flex-wrap:wrap;gap:6px">
-            <div class="u-item-info" style="flex:1;min-width:120px">
-              <div class="u-item-name">${u.name||u.email.split('@')[0]}</div>
-              <div class="u-item-email">${u.email}</div>
-              <div style="font-size:10px;color:var(--fl);margin-top:2px">📍 ${famName}</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-              <span class="ubadge ${roleBg}" style="font-size:9px">${roleLabel}</span>
-              <div style="display:flex;gap:4px">
-                <button onclick="sendInviteEmail('${u.email}')" title="Open a pre-filled email invite" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--blue);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer">✉️ Invite</button>
-                <button onclick="openAssignUser('${u.email}')" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--fl);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer">Edit${u.email===cu?.email?' (You)':''}</button>
-              </div>
-            </div>
-          </div>`;
-        }).join('')}</div>
-
-        <div style="display:flex;gap:6px;margin-bottom:6px">
-          <input class="add-u-inp" id="add-u-email" type="email" placeholder="Add: friend@gmail.com" style="flex:1;padding:8px 12px;font-size:13px">
-          <button class="add-u-btn" onclick="addUser()">Add</button>
-        </div>
-        <div style="font-size:11px;color:var(--muted)">This app can't send emails itself — after adding someone, tap ✉️ Invite to open a pre-filled email (or just message them) telling them to sign in with Google using this exact address.</div>
-      </div>
-
-      <div style="border-top:1px solid var(--border);padding:12px 14px 14px">
-        <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Data Repair</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button onclick="repairFindUnassigned()" style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;color:var(--amber);font-size:13px;font-weight:600;padding:11px;cursor:pointer;width:100%">🔍 Find users without a family</button>
-          <button onclick="repairExportJSON()" style="background:rgba(100,181,246,.08);border:1px solid rgba(100,181,246,.3);border-radius:10px;color:var(--blue);font-size:13px;font-weight:600;padding:11px;cursor:pointer;width:100%">📤 Export hike data (JSON)</button>
-        </div>
-        <div id="repair-log" style="background:#071510;border-radius:8px;padding:10px;font-size:12px;color:var(--green);font-family:monospace;margin-top:10px;display:none;max-height:200px;overflow-y:auto;line-height:1.6"></div>
-      </div>
-    </div>
-    `:''}
-`;
+  `;
 }
 
 // Helper: return the family key that's being edited (either user's own or admin editing another)
 function getEditFamKey(){return editingFamKey!==null?editingFamKey:userFamKey;}
+
+window.showAdmin=()=>{
+  localStorage.setItem('trail_lastHikeId',currentHike?.id||'');
+  window.location.href='admin.html';
+};
+
+function renderAdmin(){
+  if(!isGlobalAdmin)return;
+  const content=document.getElementById('admin-content');
+  if(!content)return;
+
+  content.innerHTML=`
+    <div class="admin-tabs">
+      <button class="admin-tab-btn active" onclick="switchAdminTab('users')">👥 Users & Families</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('hikes')">🏔️ Adventure Management</button>
+      <button class="admin-tab-btn" onclick="switchAdminTab('repair')">🔧 Data Repair</button>
+    </div>
+
+    <div id="admin-tab-users" class="admin-tab-content">
+      <div class="card" style="border-color:rgba(255,179,0,.3)">
+        <div class="card-title" style="color:var(--amber)">Users & Family Assignment</div>
+        <div style="padding:0 14px 14px">
+          <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">All Users</div>
+          <div class="u-list" style="padding:0;margin-bottom:10px">${users.map(u=>{
+            const famIdx=u.familyKey!==null&&u.familyKey!==undefined?u.familyKey:null;
+            const famName=famIdx!==null?(currentHike?.families?.[famIdx]?.name||'Fam '+famIdx):'Unassigned';
+            const roleLabel=u.role==='globalAdmin'?'🌍 Global Admin':u.role==='familyAdmin'?'👨‍👩‍👧 Fam Admin':'👤 Member';
+            const roleBg=u.role==='globalAdmin'?'badge-admin':u.role==='familyAdmin'?'badge-admin':'badge-user';
+            return`<div class="u-item" style="flex-wrap:wrap;gap:6px">
+              <div class="u-item-info" style="flex:1;min-width:120px">
+                <div class="u-item-name">${u.name||u.email.split('@')[0]}</div>
+                <div class="u-item-email">${u.email}</div>
+                <div style="font-size:10px;color:var(--fl);margin-top:2px">📍 ${famName}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+                <span class="ubadge ${roleBg}" style="font-size:9px">${roleLabel}</span>
+                <div style="display:flex;gap:4px">
+                  <button onclick="sendInviteEmail('${u.email}')" title="Open a pre-filled email invite" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--blue);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer">✉️ Invite</button>
+                  <button onclick="openAssignUser('${u.email}')" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--fl);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer">Edit${u.email===cu?.email?' (You)':''}</button>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}</div>
+          <div style="display:flex;gap:6px">
+            <input class="add-u-inp" id="add-u-email" type="email" placeholder="Add: friend@gmail.com" style="flex:1;padding:8px 12px;font-size:13px">
+            <button class="add-u-btn" onclick="addUser()">Add</button>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">This app can't send emails itself — after adding someone, tap ✉️ Invite to open a pre-filled email (or just message them) telling them to sign in with Google using this exact address.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-tab-hikes" class="admin-tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title">🗄️ Archive This Adventure</div>
+        <div style="padding:0 14px 14px">
+          <button onclick="archiveHike()" style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%">${currentHike?.archived?'Unarchive Adventure':'Archive This Adventure'}</button>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(239,83,80,.3)">
+        <div class="card-title" style="color:var(--red)">🗑️ Delete This Adventure</div>
+        <div style="padding:0 14px 14px">
+          <div class="hint" style="margin-bottom:8px">Permanently deletes this adventure and all its checklists, meals, and posts. This cannot be undone — archiving is usually safer if you just want it out of the way.</div>
+          <button onclick="deleteHike()" style="background:rgba(239,83,80,.1);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%">Delete This Adventure Permanently</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚠️ Reset</div>
+        <div style="padding:0 14px 14px">
+          <button onclick="resetAll()" style="background:rgba(239,83,80,.1);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%">Reset all family checklists</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-tab-repair" class="admin-tab-content" style="display:none">
+      <div class="card" style="border-color:rgba(255,179,0,.3)">
+        <div class="card-title" style="color:var(--amber)">Data Repair</div>
+        <div style="padding:0 14px 14px">
+          <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Utilities</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button onclick="repairFindUnassigned()" style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;color:var(--amber);font-size:13px;font-weight:600;padding:11px;cursor:pointer;width:100%">🔍 Find users without a family</button>
+            <button onclick="repairExportJSON()" style="background:rgba(100,181,246,.08);border:1px solid rgba(100,181,246,.3);border-radius:10px;color:var(--blue);font-size:13px;font-weight:600;padding:11px;cursor:pointer;width:100%">📤 Export adventure data (JSON)</button>
+          </div>
+          <div id="repair-log" style="background:#071510;border-radius:8px;padding:10px;font-size:12px;color:var(--green);font-family:monospace;margin-top:10px;display:none;max-height:200px;overflow-y:auto;line-height:1.6"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window.switchAdminTab=tab=>{
+  document.querySelectorAll('.admin-tab-content').forEach(el=>el.style.display='none');
+  document.querySelectorAll('.admin-tab-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('admin-tab-'+tab).style.display='block';
+  event.target.classList.add('active');
+};
 
 // ── PERSIST FAMILY ──
 async function persistFamily(famIdx){
@@ -1280,10 +1352,11 @@ async function persistFamily(famIdx){
 window.saveFamName=async()=>{
   const val=document.getElementById('fam-name-inp')?.value.trim();
   if(!val||!currentHikeData)return;
-  currentHikeData['f'+userFamKey].name=val;
+  const famKey=getEditFamKey();
+  currentHikeData['f'+famKey].name=val;
   document.getElementById('u-fam').textContent=val;
   buildFamCards();renderDashboard();
-  await persistFamily(userFamKey);
+  await persistFamily(famKey);
   showToast('✅ Family name updated');
 };
 
@@ -1341,7 +1414,7 @@ window.cloneList=()=>{
   const srcFam=currentHikeData[srcFamKey];
   const srcMember=srcFam?.members[srcMemberKey];
   if(!srcMember){showToast('Source not found','#EF5350');return;}
-  const targetMember=currentHikeData['f'+userFamKey]?.members[intoKey];
+  const targetMember=currentHikeData['f'+getEditFamKey()]?.members[intoKey];
   if(!targetMember){showToast('Target not found','#EF5350');return;}
   const existingNames=new Set();
   targetMember.cats.forEach(c=>c.items.forEach(i=>existingNames.add(i.name.toLowerCase())));
