@@ -1,0 +1,44 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My Adventures</title><link rel="stylesheet" href="css/styles.css"></head><body>
+<div id="s-hub" class="screen active">
+  <div class="hub-header">
+    <div class="hub-title">🏕️ My Adventures</div>
+    <div class="hub-user">
+      <div class="hub-init" id="hub-init"></div>
+      <button class="hub-signout" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+  <div id="hub-content"></div>
+</div>
+
+<!-- Create New Adventure wizard (global admin only, opened via renderHub's create button) -->
+<div class="modal-bg" id="create-hike-modal">
+  <div class="modal">
+    <h3>Create New Adventure</h3>
+    <div class="wizard-progress" id="wiz-prog"></div>
+    <div id="wiz-content"></div>
+  </div>
+</div>
+
+<!-- Manage/edit an existing adventure (global admin only, opened via ⚙️ on a hike card) -->
+<div class="modal-bg" id="hike-manager-modal">
+  <div class="modal">
+    <h3>Manage Adventure</h3>
+    <div class="mf"><label class="ml">Name</label><input class="mi" id="hm-name"></div>
+    <div class="mf"><label class="ml">Location</label><input class="mi" id="hm-location"></div>
+    <div style="display:flex;gap:12px">
+      <div class="mf" style="flex:1"><label class="ml">From Date</label><input class="mi" type="date" id="hm-date-from"></div>
+      <div class="mf" style="flex:1"><label class="ml">To Date</label><input class="mi" type="date" id="hm-date-to"></div>
+    </div>
+    <div class="mf"><label class="ml">Cover Image URL</label><input class="mi" id="hm-image" placeholder="https://…"></div>
+    <button id="hm-archive-btn" onclick="archiveHikeFromManager()" style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%;margin-bottom:10px">Archive This Adventure</button>
+    <button onclick="deleteHikeFromManager()" style="background:rgba(239,83,80,.1);border:1px solid var(--red);border-radius:10px;color:var(--red);font-size:13px;font-weight:600;padding:12px;cursor:pointer;width:100%;margin-bottom:10px">Delete This Adventure Permanently</button>
+    <div class="mbtns">
+      <button class="m-cancel" onclick="closeHikeManager()">Cancel</button>
+      <button class="m-save" onclick="saveHikeDetails()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="js/app.js"></script>
+</body></html>
