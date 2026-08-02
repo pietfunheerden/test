@@ -550,6 +550,8 @@ function subscribeHikeData(hikeId){
 // ── BUILD APP TABS ──
 function buildAppTabs(){
   const prevActiveId=document.querySelector('.app-tab.active')?.dataset.tabId;
+  const verEl=document.getElementById('app-ver');
+  if(verEl)verEl.textContent=APP_VERSION;
   otherFamActive=null;
   const bar=document.getElementById('app-tabs');
   const pnls=document.getElementById('app-panels');
@@ -1222,8 +1224,8 @@ function renderSettings(){
 function getEditFamKey(){return editingFamKey!==null?editingFamKey:userFamKey;}
 
 window.showAdmin=()=>{
-  // Don't persist trail_lastHikeId — it would cause the auth flow to auto-enter the hike
-  // and redirect back to adventure.html. Admin page is separate.
+  // Clear hike context so admin page doesn't auto-redirect to adventure
+  localStorage.removeItem('trail_lastHikeId');
   window.location.href='admin.html';
 };
 
