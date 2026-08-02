@@ -1,5 +1,28 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My adventures</title><link rel="stylesheet" href="css/styles.css"></head><body>
-<div id="s-hub" class="screen active">
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Adventure planner</title><link rel="stylesheet" href="css/styles.css"></head><body>
+
+<!-- LOGIN SCREEN -->
+<div id="s-login" class="screen">
+  <div class="login-sky"></div>
+  <div class="login-stars" id="login-stars"></div>
+  <div class="mist-layer mist1"></div>
+  <div class="mist-layer mist2"></div>
+  <div class="login-content">
+    <div style="text-align:center;margin-bottom:8px">
+      <div class="login-logo">🏕️</div>
+      <div style="font-size:13px;color:var(--amber);font-weight:700;letter-spacing:.05em">Adventure Planner</div>
+    </div>
+    <div class="login-title">Pack & plan together</div>
+    <div class="login-sub">Coordinate packing, meals, and questions across every family on the trip.</div>
+    <button class="google-btn" onclick="signIn()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
+      Sign in with Google
+    </button>
+    <div class="login-note">You'll need to be invited by an admin to see your adventures.</div>
+  </div>
+</div>
+
+<!-- HUB SCREEN -->
+<div id="s-hub" class="screen">
   <div class="hub-header">
     <div class="hub-title">🏕️ My adventures</div>
     <div class="hub-user">
@@ -10,7 +33,7 @@
   <div id="hub-content"></div>
 </div>
 
-<!-- Create New Adventure wizard (global admin only, opened via renderHub's create button) -->
+<!-- Create New Adventure wizard (global admin only) -->
 <div class="modal-bg" id="create-hike-modal">
   <div class="modal">
     <h3>Create New Adventure</h3>
@@ -19,7 +42,7 @@
   </div>
 </div>
 
-<!-- Manage/edit an existing adventure (global admin only, opened via ⚙️ on a hike card) -->
+<!-- Manage/edit an existing adventure (global admin only) -->
 <div class="modal-bg" id="hike-manager-modal">
   <div class="modal">
     <h3>Manage Adventure</h3>

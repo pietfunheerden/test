@@ -10,7 +10,10 @@
           <div class="u-fam" id="u-fam">Family</div>
         </div>
       </div>
-      <button class="signout-btn" onclick="signOut()">Sign out</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--muted);font-weight:600">v<span id="app-ver"></span></span>
+        <button class="signout-btn" onclick="signOut()">Sign out</button>
+      </div>
     </div>
     <div class="fam-cards" id="fam-cards"></div>
     <div class="overall-row">
