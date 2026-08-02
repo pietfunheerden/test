@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Administration</title><link rel="stylesheet" href="css/styles.css"></head><body>
-<div id="s-admin" class="screen active">
+<div id="s-admin" class="screen">
   <div class="app-topbar">
     <div style="display:flex;align-items:center;gap:12px;width:100%">
       <button onclick="history.back()" style="background:none;border:none;color:var(--teal);font-size:24px;cursor:pointer;padding:0">←</button>
@@ -12,9 +12,5 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script type="module">
-import('./js/app.js').then(m=>{
-  window.renderAdmin?.();
-});
-</script>
+<script type="module" src="js/app.js"></script>
 </body></html>
