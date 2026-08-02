@@ -11,7 +11,7 @@
     </div>
     <div class="login-title">Pack & plan together</div>
     <div class="login-sub">Coordinate packing, meals, and questions across every family on the trip.</div>
-    <button class="google-btn" onclick="signIn()">
+    <button class="google-btn" onclick="if(typeof signIn==='function'){signIn()}else{alert('App still loading, please wait...')}">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
       Sign in with Google
     </button>
