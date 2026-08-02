@@ -3,7 +3,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getAuth,GoogleAuthProvider,signInWithPopup,signOut as fbOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,getDoc,getDocs,setDoc,deleteDoc,addDoc,updateDoc,onSnapshot,query,orderBy,where,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const APP_VERSION='1.0.0';
+const APP_VERSION='1.0.1';
 
 const cfg={apiKey:"AIzaSyCbANGtwm-1x2ZX2kGN2zX6C36YvXBE9UQ",authDomain:"soc-calculator.firebaseapp.com",projectId:"soc-calculator",storageBucket:"soc-calculator.firebasestorage.app",messagingSenderId:"555241038540",appId:"1:555241038540:web:93d4d777688cb2e4e95869"};
 const fbApp=initializeApp(cfg);
@@ -111,13 +111,6 @@ function groupCats(px,dad,mom){return[
 
 // ── APP VERSION ──
 // Bump this string with every deploy so it's easy to check (right on the
-// login/hub screens) whether a new version actually went live, instead of
-// guessing from cache behaviour.
-const APP_VERSION='2026.07.27-6';
-document.addEventListener('DOMContentLoaded',()=>{
-  document.querySelectorAll('#app-version,#app-version-login').forEach(el=>{if(el)el.textContent='v'+APP_VERSION;});
-});
-
 // ── STATE ──
 let cu=null,isAdmin=false,isGlobalAdmin=false,isFamilyAdmin=false,userFamKey=null,userRole='member';
 let editingFamKey=null; // When admin edits another family, this tracks which one
