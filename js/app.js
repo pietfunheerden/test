@@ -642,7 +642,7 @@ function buildFamCards(){
       clickTarget=`showAppTab('m_${firstMemberKey}')`;
     } else if(isGlobalAdmin){
       // Global admin: can edit any family
-      clickTarget=`editingFamKey='${fk}';buildAppTabs();renderAppAll();showAppTab('m_${firstMemberKey}')`;
+      clickTarget=`switchEditFamily('${fk}','m_${firstMemberKey}')`;
     } else {
       // Family admin or member: read-only view of other families
       clickTarget=`openOtherFamView('${fk}','${firstMemberKey}','${fam.name}')`;
@@ -656,6 +656,13 @@ function buildFamCards(){
     </div>`;
   }).join('');
 }
+
+window.switchEditFamily=(famKey,memberTabId)=>{
+  editingFamKey=famKey;
+  buildAppTabs();
+  renderAppAll();
+  showAppTab(memberTabId);
+};
 
 // ── OTHER FAMILY VIEW — same tab layout as own family ──
 let otherFamActive=null; // {famKey, famName}
