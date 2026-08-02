@@ -3,6 +3,8 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getAuth,GoogleAuthProvider,signInWithPopup,signOut as fbOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,getDoc,getDocs,setDoc,deleteDoc,addDoc,updateDoc,onSnapshot,query,orderBy,where,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
+const APP_VERSION='1.0.0';
+
 const cfg={apiKey:"AIzaSyCbANGtwm-1x2ZX2kGN2zX6C36YvXBE9UQ",authDomain:"soc-calculator.firebaseapp.com",projectId:"soc-calculator",storageBucket:"soc-calculator.firebasestorage.app",messagingSenderId:"555241038540",appId:"1:555241038540:web:93d4d777688cb2e4e95869"};
 const fbApp=initializeApp(cfg);
 const auth=getAuth(fbApp);
@@ -362,7 +364,7 @@ function renderHub(){
   if(isGlobalAdmin){
     html+=`<div style="padding:0 16px 16px">
       <button class="create-hike-btn" onclick="openCreateHike()">
-        <span style="font-size:20px">＋</span> Create New Adventure
+        <span style="font-size:20px">＋</span> Create new adventure
       </button>
     </div>`;
   }
@@ -376,14 +378,14 @@ function renderHub(){
   }
 
   if(active.length){
-    html+=`<div class="hub-section-label">📋 Upcoming Adventures</div>`;
+    html+=`<div class="hub-section-label">📋 Upcoming adventures</div>`;
     html+=`<div class="hike-grid">`;
     active.forEach(h=>{html+=hikeCard(h,false);});
     html+=`</div>`;
   }
 
   if(archived.length){
-    html+=`<div class="hub-section-label" style="margin-top:12px">📦 Past Adventures</div>`;
+    html+=`<div class="hub-section-label" style="margin-top:12px">📦 Past adventures</div>`;
     html+=`<div class="hike-grid">`;
     archived.forEach(h=>{html+=hikeCard(h,true);});
     html+=`</div>`;
@@ -434,6 +436,10 @@ window.enterHike=async()=>{
 };
 
 async function renderAppScreen(){
+  // Display version number
+  const verEl=document.getElementById('app-ver');
+  if(verEl)verEl.textContent=APP_VERSION;
+  
   const fams=currentHike.families||[];
 
   // Re-read user doc to get latest familyKey (may have changed since login)
@@ -555,20 +561,7 @@ function buildAppTabs(){
   const activeFam=currentHikeData['f'+activeFamKey];
   if(!activeFam)return;
 
-  // For global admins: add a family selector at the top of tabs
-  if(isGlobalAdmin&&Object.keys(currentHikeData).length>1){
-    const famBar=document.createElement('div');
-    famBar.style.cssText='display:flex;gap:8px;padding:8px 14px;overflow-x:auto;background:var(--s2);border-bottom:1px solid var(--border)';
-    Object.entries(currentHikeData).forEach(([fk,fam])=>{
-      const btn=document.createElement('button');
-      const isActive=fk==activeFamKey;
-      btn.textContent=fam.name;
-      btn.style.cssText=`background:${isActive?'var(--fl)':'var(--card)'};color:${isActive?'#fff':'var(--text)'};border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap`;
-      btn.onclick=()=>{editingFamKey=fk;buildAppTabs();renderAppAll();showAppTab('dash');};
-      famBar.appendChild(btn);
-    });
-    bar.appendChild(famBar);
-  }
+  // No separate family selector bar — global admins use family cards below instead
 
   // Other family panels (hidden, rendered on fam-card tap — not shown as tabs)
   const otherFamPanels=Object.entries(currentHikeData)
@@ -645,7 +638,8 @@ function buildFamCards(){
       clickTarget=`switchEditFamily('${fk}','m_${firstMemberKey}')`;
     } else {
       // Family admin or member: read-only view of other families
-      clickTarget=`openOtherFamView('${fk}','${firstMemberKey}','${fam.name}')`;
+      const safeFamName=(fam.name||'').replace(/'/g,"\\'");
+      clickTarget=`openOtherFamView('${fk}','${firstMemberKey}','${safeFamName}')`;
     }
     return`<div class="fam-card${isMine?' mine':''}" onclick="${clickTarget}" style="cursor:pointer">
       <div class="fc-name">🏠 ${fam.name}${isMine?' ✓':isGlobalAdmin?'':' 👀'}</div>
@@ -1228,7 +1222,8 @@ function renderSettings(){
 function getEditFamKey(){return editingFamKey!==null?editingFamKey:userFamKey;}
 
 window.showAdmin=()=>{
-  localStorage.setItem('trail_lastHikeId',currentHike?.id||'');
+  // Don't persist trail_lastHikeId — it would cause the auth flow to auto-enter the hike
+  // and redirect back to adventure.html. Admin page is separate.
   window.location.href='admin.html';
 };
 
