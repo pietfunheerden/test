@@ -647,7 +647,7 @@ function buildFamCards(){
 }
 
 window.switchEditFamily=(famKey,memberTabId)=>{
-  editingFamKey=famKey;
+  editingFamKey=famKey; // Keep as 'f0', 'f1' etc
   buildAppTabs();
   renderAppAll();
   showAppTab(memberTabId);
@@ -660,7 +660,7 @@ window.openOtherFamView=(famKey,firstMemberKey,famName)=>{
   const fam=currentHikeData?.[famKey];if(!fam)return;
   otherFamActive={famKey,famName};
   // Allow global admin to edit this family
-  if(isGlobalAdmin)editingFamKey=famKey;
+  if(isGlobalAdmin)editingFamKey=famKey; // Keep as 'f0', 'f1' etc
 
   // Rebuild tab bar with other fam's members + Shopping + Meals + a back button
   const bar=document.getElementById('app-tabs');
@@ -671,7 +671,8 @@ window.openOtherFamView=(famKey,firstMemberKey,famName)=>{
   const backTab=document.createElement('div');
   backTab.className='app-tab';
   backTab.style.cssText='color:var(--teal);font-weight:800;flex-shrink:0';
-  backTab.textContent=isGlobalAdmin&&editingFamKey===famKey?'← Back (admin mode)':'← Back';
+  const editIdx=parseInt(famKey.replace('f',''));
+  backTab.textContent=isGlobalAdmin&&editingFamKey===editIdx?'← Back (admin mode)':'← Back';
   backTab.onclick=()=>{otherFamActive=null;editingFamKey=null;buildAppTabs();renderAppAll();showAppTab('dash');};
   bar.appendChild(backTab);
 
@@ -681,7 +682,7 @@ window.openOtherFamView=(famKey,firstMemberKey,famName)=>{
     tab.className='app-tab'+(i===0?' active':'');
     tab.dataset.tabId='ofm_'+mk;
     tab.style.cssText=i===0?'color:var(--teal);border-bottom-color:var(--teal)':'';
-    const eyeIcon=isGlobalAdmin&&editingFamKey===famKey?'✏️':'👀'; // Edit icon for admin, eye for read-only
+    const eyeIcon=isGlobalAdmin&&editingFamKey===parseInt(famKey.replace('f',''))?'✏️':'👀'; // Edit icon for admin, eye for read-only
     tab.textContent=eyeIcon+' '+(mv.name||mv.label.split(' ')[0]);
     tab.onclick=()=>{
       bar.querySelectorAll('.app-tab').forEach(t=>{t.classList.remove('active');t.style.color='';t.style.borderBottomColor='';});
