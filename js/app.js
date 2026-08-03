@@ -3,7 +3,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getAuth,GoogleAuthProvider,signInWithPopup,signOut as fbOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,getDoc,getDocs,setDoc,deleteDoc,addDoc,updateDoc,onSnapshot,query,orderBy,where,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const APP_VERSION='1.0.3';
+const APP_VERSION='1.0.4';
 
 const cfg={apiKey:"AIzaSyCbANGtwm-1x2ZX2kGN2zX6C36YvXBE9UQ",authDomain:"soc-calculator.firebaseapp.com",projectId:"soc-calculator",storageBucket:"soc-calculator.firebasestorage.app",messagingSenderId:"555241038540",appId:"1:555241038540:web:93d4d777688cb2e4e95869"};
 const fbApp=initializeApp(cfg);
@@ -673,8 +673,7 @@ window.openOtherFamView=(famKey,firstMemberKey,famName)=>{
   const backTab=document.createElement('div');
   backTab.className='app-tab';
   backTab.style.cssText='color:var(--teal);font-weight:800;flex-shrink:0';
-  const editIdx=parseInt(famKey.replace('f',''));
-  backTab.textContent=isGlobalAdmin&&editingFamKey===editIdx?'← Back (admin mode)':'← Back';
+  backTab.textContent=isGlobalAdmin&&editingFamKey===famKey?'← Back (admin mode)':'← Back';
   backTab.onclick=()=>{otherFamActive=null;editingFamKey=null;buildAppTabs();renderAppAll();showAppTab('dash');};
   bar.appendChild(backTab);
 
@@ -684,7 +683,7 @@ window.openOtherFamView=(famKey,firstMemberKey,famName)=>{
     tab.className='app-tab'+(i===0?' active':'');
     tab.dataset.tabId='ofm_'+mk;
     tab.style.cssText=i===0?'color:var(--teal);border-bottom-color:var(--teal)':'';
-    const eyeIcon=isGlobalAdmin&&editingFamKey===parseInt(famKey.replace('f',''))?'✏️':'👀'; // Edit icon for admin, eye for read-only
+    const eyeIcon=isGlobalAdmin&&editingFamKey===famKey?'✏️':'👀'; // Edit icon for admin, eye for read-only
     tab.textContent=eyeIcon+' '+(mv.name||mv.label.split(' ')[0]);
     tab.onclick=()=>{
       bar.querySelectorAll('.app-tab').forEach(t=>{t.classList.remove('active');t.style.color='';t.style.borderBottomColor='';});
@@ -732,6 +731,25 @@ window.openOtherFamView=(famKey,firstMemberKey,famName)=>{
   mealsPanel.className='app-panel';
   mealsPanel.id='ap_ofm_meals';
   pnls.appendChild(mealsPanel);
+
+  // Settings tab (only for global admin editing)
+  if(isGlobalAdmin&&editingFamKey===famKey){
+    const settingsTab=document.createElement('div');
+    settingsTab.className='app-tab';
+    settingsTab.dataset.tabId='ofm_settings';
+    settingsTab.textContent='⚙️ Settings';
+    settingsTab.onclick=()=>{
+      bar.querySelectorAll('.app-tab').forEach(t=>{t.classList.remove('active');t.style.color='';t.style.borderBottomColor='';});
+      settingsTab.classList.add('active');settingsTab.style.color='var(--teal)';settingsTab.style.borderBottomColor='var(--teal)';
+      pnls.querySelectorAll('.app-panel').forEach(p=>p.classList.remove('active'));
+      const p=document.getElementById('ap_ofm_settings');if(p){p.classList.add('active');renderSettings();}
+    };
+    bar.appendChild(settingsTab);
+    const settingsPanel=document.createElement('div');
+    settingsPanel.className='app-panel';
+    settingsPanel.id='ap_ofm_settings';
+    pnls.appendChild(settingsPanel);
+  }
 
   // Render first member immediately
   const firstPanel=document.getElementById('ap_ofm_'+firstMemberKey);
@@ -1146,8 +1164,9 @@ window.delPost=async id=>{if(!currentHike)return;if(confirm('Delete post?'))awai
 function renderSettings(){
   const panel=document.getElementById('ap_settings');if(!panel)return;
   const name=cu?.displayName||cu?.email||'';
-  const famKey=getEditFamKey();
-  const fam=currentHikeData?.['f'+famKey];
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  const fam=currentHikeData?.[famKey];
 
   const memberRows=fam?Object.entries(fam.members).map(([k,v])=>`
     <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--border)">
@@ -1356,8 +1375,9 @@ async function persistFamily(famIdx){
 window.saveFamName=async()=>{
   const val=document.getElementById('fam-name-inp')?.value.trim();
   if(!val||!currentHikeData)return;
-  const famKey=getEditFamKey();
-  currentHikeData['f'+famKey].name=val;
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  currentHikeData[famKey].name=val;
   document.getElementById('u-fam').textContent=val;
   buildFamCards();renderDashboard();
   await persistFamily(famKey);
@@ -1371,8 +1391,9 @@ window.saveFamName=async()=>{
 // the dashboard), then persists.
 window.saveMember=async k=>{
   if(!currentHikeData)return;
-  const famKey=getEditFamKey();
-  const fam=currentHikeData['f'+famKey];const m=fam?.members[k];if(!m)return;
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  const fam=currentHikeData[famKey];const m=fam?.members[k];if(!m)return;
   const name=document.getElementById('mn-'+k)?.value.trim();
   if(!name){showToast('Name can\'t be empty','#EF5350');return;}
   const age=document.getElementById('ma-'+k)?.value.trim()||'';
@@ -1388,8 +1409,9 @@ window.addMember=async()=>{
   const inp=document.getElementById('new-member-name');
   const name=inp?.value.trim();if(!name){showToast('Enter a name','#EF5350');return;}
   if(!currentHikeData)return;
-  const famKey=getEditFamKey();
-  const fam=currentHikeData['f'+famKey];
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  const fam=currentHikeData[famKey];
   const key='m'+Date.now();
   const px=`${currentHike?.id}_f${famKey}_${key}_`;
   fam.members[key]={label:name,name,age:'',gender:'',note:'',cats:baseCats(px)};
@@ -1399,8 +1421,9 @@ window.addMember=async()=>{
 };
 window.removeMember=async k=>{
   if(!currentHikeData)return;
-  const famKey=getEditFamKey();
-  const fam=currentHikeData['f'+famKey];
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  const fam=currentHikeData[famKey];
   if(!fam?.members[k])return;
   const lbl=fam.members[k].label;
   if(!confirm('Remove '+lbl+'?'))return;
