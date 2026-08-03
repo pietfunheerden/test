@@ -3,7 +3,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getAuth,GoogleAuthProvider,signInWithPopup,signOut as fbOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,getDoc,getDocs,setDoc,deleteDoc,addDoc,updateDoc,onSnapshot,query,orderBy,where,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const APP_VERSION='1.0.2';
+const APP_VERSION='1.0.3';
 
 const cfg={apiKey:"AIzaSyCbANGtwm-1x2ZX2kGN2zX6C36YvXBE9UQ",authDomain:"soc-calculator.firebaseapp.com",projectId:"soc-calculator",storageBucket:"soc-calculator.firebasestorage.app",messagingSenderId:"555241038540",appId:"1:555241038540:web:93d4d777688cb2e4e95869"};
 const fbApp=initializeApp(cfg);
@@ -960,8 +960,9 @@ function memberProgress(famIdx,memberKey){
 
 function renderMember(memberKey){
   const panel=document.getElementById('ap_m_'+memberKey);if(!panel)return;
-  const famKey=getEditFamKey();
-  const fam=currentHikeData?.['f'+famKey];if(!fam)return;
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  const fam=currentHikeData?.[famKey];if(!fam)return;
   const member=fam.members[memberKey];if(!member)return;
   const{t,d,pct}=memberProgress(famKey,memberKey);
   let html=`<div class="card">
@@ -1010,8 +1011,9 @@ function renderMember(memberKey){
 // ── SHOPPING ──
 function renderShop(){
   const panel=document.getElementById('ap_shop');if(!panel)return;
-  const famKey=getEditFamKey();
-  const fam=currentHikeData?.['f'+famKey];if(!fam)return;
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  const fam=currentHikeData?.[famKey];if(!fam)return;
   let t=0,d=0;fam.shopping.forEach(c=>c.items.forEach(i=>{t++;if(checks[i.id]?.checked)d++;}));
   const pct=t?Math.round(d/t*100):0;
   let html=`<div class="card"><div class="p-hdr">
@@ -1060,8 +1062,9 @@ function renderShop(){
 function renderMeals(){
   const panel=document.getElementById('ap_meals');if(!panel)return;
   if(!currentHikeData)return;
-  const famKey=getEditFamKey();
-  const fam=currentHikeData?.['f'+famKey];if(!fam)return;
+  let famKey=getEditFamKey();
+  if(typeof famKey==='number')famKey='f'+famKey;
+  const fam=currentHikeData?.[famKey];if(!fam)return;
   const meals=fam.meals||[];
   if(!meals.length){panel.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No meals planned yet</div>';return;}
   let html=`<div style="padding:0 8px">`;
