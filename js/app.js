@@ -3,7 +3,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getAuth,GoogleAuthProvider,signInWithPopup,signOut as fbOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,getDoc,getDocs,setDoc,deleteDoc,addDoc,updateDoc,onSnapshot,query,orderBy,where,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const APP_VERSION='1.0.4';
+const APP_VERSION='1.0.5';
 
 const cfg={apiKey:"AIzaSyCbANGtwm-1x2ZX2kGN2zX6C36YvXBE9UQ",authDomain:"soc-calculator.firebaseapp.com",projectId:"soc-calculator",storageBucket:"soc-calculator.firebasestorage.app",messagingSenderId:"555241038540",appId:"1:555241038540:web:93d4d777688cb2e4e95869"};
 const fbApp=initializeApp(cfg);
@@ -1343,6 +1343,9 @@ window.switchAdminTab=tab=>{
 async function persistFamily(famIdx){
     if(!currentHike || !currentHikeData) return;
 
+    // Normalize: if passed 'f0', convert to 0; if already 0, keep it
+    if(typeof famIdx==='string')famIdx=parseInt(famIdx.replace('f',''));
+    
     const fam = currentHikeData['f' + famIdx];
     if(!fam) return;
 
