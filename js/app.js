@@ -552,8 +552,10 @@ function buildAppTabs(){
   if(!currentHikeData)return;
 
   // Determine which family to show tabs for: editing family (if global admin editing another), or user's own family
-  const activeFamKey=getEditFamKey();
-  const activeFam=currentHikeData['f'+activeFamKey];
+  let activeFamKey=getEditFamKey();
+  // Normalize: if it's already 'f0', keep it; if it's integer 0, convert to 'f0'
+  if(typeof activeFamKey==='number')activeFamKey='f'+activeFamKey;
+  const activeFam=currentHikeData[activeFamKey];
   if(!activeFam)return;
 
   // No separate family selector bar — global admins use family cards below instead
@@ -865,8 +867,9 @@ function renderAppAll(){
     updateFamCards();return;
   }
   renderDashboard();
-  const activeFamKey=getEditFamKey();
-  const activeFam=currentHikeData['f'+activeFamKey];
+  let activeFamKey=getEditFamKey();
+  if(typeof activeFamKey==='number')activeFamKey='f'+activeFamKey;
+  const activeFam=currentHikeData[activeFamKey];
   if(activeFam)Object.keys(activeFam.members).forEach(k=>renderMember(k));
   renderShop();
   renderMeals();
